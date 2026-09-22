@@ -59,7 +59,6 @@ export default function ConversationPage() {
     ? params.id[0]
     : params.id;
 
-
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -77,7 +76,6 @@ export default function ConversationPage() {
 
   const [messageText, setMessageText] = useState("");
 
- 
   const [messageSource, setMessageSource] =
     useState<"HUMAN" | "AI">("HUMAN");
 
@@ -87,7 +85,6 @@ export default function ConversationPage() {
 
   const [errorMessage, setErrorMessage] = useState("");
 
-  
   // LEAD STATE
 
   const [isLead, setIsLead] = useState(false);
@@ -578,7 +575,6 @@ export default function ConversationPage() {
     }
   };
 
-
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString(
       undefined,
@@ -909,66 +905,43 @@ export default function ConversationPage() {
                     : "border-indigo-100 bg-indigo-50/70"
                 }`}
               >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                        isDark
-                          ? "bg-indigo-500/15 text-indigo-400"
-                          : "bg-white text-indigo-600"
-                      }`}
-                    >
-                      <Sparkles className="h-4 w-4" />
-                    </div>
-
-                    <div>
-                      <p
-                        className={`text-sm font-semibold ${
-                          isDark
-                            ? "text-indigo-200"
-                            : "text-indigo-900"
-                        }`}
-                      >
-                        ReplyFlow AI
-                      </p>
-
-                      <p
-                        className={`mt-1 text-xs leading-5 ${
-                          isDark
-                            ? "text-indigo-300/60"
-                            : "text-indigo-700/70"
-                        }`}
-                      >
-                        Generate a suggested reply based
-                        on the conversation. Your saved
-                        AI preferences will be applied.
-                      </p>
-                    </div>
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                      isDark
+                        ? "bg-indigo-500/15 text-indigo-400"
+                        : "bg-white text-indigo-600"
+                    }`}
+                  >
+                    <Sparkles className="h-4 w-4" />
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleGenerateAIReply}
-                    disabled={
-                      generatingReply ||
-                      messages.length === 0
-                    }
-                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {generatingReply ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Generate AI Reply
-                      </>
-                    )}
-                  </button>
+                  <div>
+                    <p
+                      className={`text-sm font-semibold ${
+                        isDark
+                          ? "text-indigo-200"
+                          : "text-indigo-900"
+                      }`}
+                    >
+                      ReplyFlow AI
+                    </p>
+
+                    <p
+                      className={`mt-1 text-xs leading-5 ${
+                        isDark
+                          ? "text-indigo-300/60"
+                          : "text-indigo-700/70"
+                      }`}
+                    >
+                      Generate a suggested reply based
+                      on the conversation. Your saved
+                      AI preferences will be applied.
+                    </p>
+                  </div>
                 </div>
+
+                {/* AI SUGGESTED REPLY */}
 
                 {aiReply && (
                   <div
@@ -1275,19 +1248,20 @@ export default function ConversationPage() {
               </div>
             )}
 
-            {/* COMPOSER */}
+            {/* STICKY COMPOSER */}
 
             <div
-              className={`sticky bottom-0 border-t ${
+              className={`sticky bottom-0 z-30 border-t ${
                 isDark
                   ? "border-white/10 bg-[#0d0d1a]/95"
                   : "border-slate-200 bg-white/95"
               } backdrop-blur`}
             >
               <div className="mx-auto w-full max-w-[1000px] px-4 py-4 sm:px-6 lg:px-8">
+
                 <form
                   onSubmit={handleSendMessage}
-                  className="flex items-end gap-3"
+                  className="flex items-end gap-2 sm:gap-3"
                 >
                   <div className="relative flex-1">
                     <textarea
@@ -1336,21 +1310,67 @@ export default function ConversationPage() {
                     </span>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={
-                      sending ||
-                      !messageText.trim()
-                    }
-                    aria-label="Send message"
-                    className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {sending ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Send className="h-5 w-5" />
-                    )}
-                  </button>
+                  {/* AI + SEND ACTIONS */}
+
+                  <div className="flex shrink-0 items-center gap-2">
+
+                    {/* GENERATE AI BUTTON */}
+
+                    <button
+                      type="button"
+                      onClick={
+                        handleGenerateAIReply
+                      }
+                      disabled={
+                        generatingReply ||
+                        messages.length === 0
+                      }
+                      aria-label="Generate AI Reply"
+                      title="Generate AI Reply"
+                      className={`flex h-[52px] items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                        isDark
+                          ? "border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20"
+                          : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                      }`}
+                    >
+                      {generatingReply ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+
+                          <span className="hidden sm:inline">
+                            Generating...
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+
+                          <span className="hidden sm:inline">
+                            Generate AI
+                          </span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* SEND BUTTON */}
+
+                    <button
+                      type="submit"
+                      disabled={
+                        sending ||
+                        !messageText.trim()
+                      }
+                      aria-label="Send message"
+                      title="Send message"
+                      className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {sending ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Send className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
                 </form>
 
                 <div className="mt-2 flex items-center justify-between px-1">
@@ -1388,4 +1408,3 @@ export default function ConversationPage() {
     </div>
   );
 }
-
