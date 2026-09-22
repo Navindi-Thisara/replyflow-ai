@@ -43,21 +43,6 @@ npm run dev
 
 Open http://localhost:3000.
 
-## 📁 Main Structure
-
-app/
-├── api/generate-reply/
-├── conversations/
-├── leads/
-├── analytics/
-├── dashboard/
-├── login/
-├── register/
-└── settings/
-
-components/
-lib/
-
 ## 🔗 Links
 
 Live Demo: https://replyflow-ai-bzfl.vercel.app/
