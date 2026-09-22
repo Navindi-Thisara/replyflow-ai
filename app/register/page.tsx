@@ -15,37 +15,28 @@ import {
   Mail,
   User,
 } from "lucide-react";
-
 import { supabase } from "@/lib/supabase/client";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-
-type AccountType = "CUSTOMER" | "BUSINESS";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { resolvedTheme } = useTheme();
 
   const [mounted, setMounted] = useState(false);
-
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [accountType, setAccountType] =
-    useState<AccountType>("CUSTOMER");
-
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [errors, setErrors] = useState<{
     fullName?: string;
     email?: string;
-    accountType?: string;
     password?: string;
     confirmPassword?: string;
     terms?: string;
@@ -96,14 +87,7 @@ export default function RegisterPage() {
     if (!trimmedEmail) {
       newErrors.email = "Email address is required.";
     } else if (!emailRegex.test(trimmedEmail)) {
-      newErrors.email =
-        "Please enter a valid email address.";
-    }
-
-    // Account type
-    if (!accountType) {
-      newErrors.accountType =
-        "Please select an account type.";
+      newErrors.email = "Please enter a valid email address.";
     }
 
     // Password
@@ -167,7 +151,7 @@ export default function RegisterPage() {
         options: {
           data: {
             full_name: cleanName,
-            role: accountType,
+            role: "CUSTOMER",
           },
           emailRedirectTo: `${window.location.origin}/login`,
         },
@@ -192,7 +176,6 @@ export default function RegisterPage() {
         setEmail("");
         setPassword("");
         setConfirmPassword("");
-        setAccountType("CUSTOMER");
         setAcceptedTerms(false);
 
         return;
@@ -228,7 +211,6 @@ export default function RegisterPage() {
           : "bg-slate-50 text-slate-950"
       }`}
     >
-      {/* Shared Navbar */}
       <Navbar />
 
       {/* Background decoration */}
@@ -253,6 +235,7 @@ export default function RegisterPage() {
       {/* Register content */}
       <section className="relative z-10 flex min-h-screen items-center justify-center px-6 pb-20 pt-32">
         <div className="w-full max-w-md">
+
           {/* Back to home */}
           <Link
             href="/"
@@ -280,9 +263,7 @@ export default function RegisterPage() {
 
             <h1
               className={`text-3xl font-bold tracking-tight ${
-                darkMode
-                  ? "text-white"
-                  : "text-slate-950"
+                darkMode ? "text-white" : "text-slate-950"
               }`}
             >
               Create your account
@@ -295,8 +276,8 @@ export default function RegisterPage() {
                   : "text-slate-500"
               }`}
             >
-              Create your ReplyFlow AI account and choose
-              how you want to use the platform.
+              Create your ReplyFlow AI customer account
+              and start connecting with businesses.
             </p>
           </div>
 
@@ -453,7 +434,7 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Account Type */}
+              {/* Account Type Information */}
               <div>
                 <label
                   className={`mb-2 block text-sm font-medium ${
@@ -465,103 +446,49 @@ export default function RegisterPage() {
                   Account Type
                 </label>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Customer */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAccountType("CUSTOMER");
-
-                      if (errors.accountType) {
-                        setErrors((previous) => ({
-                          ...previous,
-                          accountType: undefined,
-                        }));
-                      }
-                    }}
-                    className={`rounded-xl border p-4 text-left transition ${
-                      accountType === "CUSTOMER"
-                        ? darkMode
-                          ? "border-indigo-500 bg-indigo-500/10"
-                          : "border-indigo-500 bg-indigo-50"
-                        : darkMode
-                        ? "border-white/10 bg-white/5 hover:border-white/20"
-                        : "border-slate-200 bg-slate-50 hover:border-slate-300"
-                    }`}
-                  >
+                <div
+                  className={`rounded-xl border p-4 ${
+                    darkMode
+                      ? "border-indigo-500/20 bg-indigo-500/5"
+                      : "border-indigo-100 bg-indigo-50/60"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
                     <div
-                      className={`text-sm font-semibold ${
+                      className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                         darkMode
-                          ? "text-white"
-                          : "text-slate-900"
+                          ? "bg-indigo-500/10 text-indigo-400"
+                          : "bg-indigo-100 text-indigo-600"
                       }`}
                     >
-                      Customer
+                      <User className="h-4 w-4" />
                     </div>
 
-                    <div
-                      className={`mt-1 text-xs leading-5 ${
-                        darkMode
-                          ? "text-slate-400"
-                          : "text-slate-500"
-                      }`}
-                    >
-                      Contact businesses and manage
-                      conversations
-                    </div>
-                  </button>
+                    <div>
+                      <p
+                        className={`text-sm font-semibold ${
+                          darkMode
+                            ? "text-white"
+                            : "text-slate-900"
+                        }`}
+                      >
+                        Customer Account
+                      </p>
 
-                  {/* Business */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAccountType("BUSINESS");
-
-                      if (errors.accountType) {
-                        setErrors((previous) => ({
-                          ...previous,
-                          accountType: undefined,
-                        }));
-                      }
-                    }}
-                    className={`rounded-xl border p-4 text-left transition ${
-                      accountType === "BUSINESS"
-                        ? darkMode
-                          ? "border-indigo-500 bg-indigo-500/10"
-                          : "border-indigo-500 bg-indigo-50"
-                        : darkMode
-                        ? "border-white/10 bg-white/5 hover:border-white/20"
-                        : "border-slate-200 bg-slate-50 hover:border-slate-300"
-                    }`}
-                  >
-                    <div
-                      className={`text-sm font-semibold ${
-                        darkMode
-                          ? "text-white"
-                          : "text-slate-900"
-                      }`}
-                    >
-                      Business
+                      <p
+                        className={`mt-1 text-xs leading-5 ${
+                          darkMode
+                            ? "text-slate-400"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        Public registration is currently
+                        available for customer accounts.
+                        Business accounts require approval.
+                      </p>
                     </div>
-
-                    <div
-                      className={`mt-1 text-xs leading-5 ${
-                        darkMode
-                          ? "text-slate-400"
-                          : "text-slate-500"
-                      }`}
-                    >
-                      Manage customers and AI-assisted
-                      replies
-                    </div>
-                  </button>
+                  </div>
                 </div>
-
-                {errors.accountType && (
-                  <p className="mt-2 text-xs text-red-500">
-                    {errors.accountType}
-                  </p>
-                )}
               </div>
 
               {/* Password */}
@@ -589,9 +516,7 @@ export default function RegisterPage() {
                   <input
                     id="password"
                     name="password"
-                    type={
-                      showPassword ? "text" : "password"
-                    }
+                    type={showPassword ? "text" : "password"}
                     autoComplete="new-password"
                     value={password}
                     onChange={(event) => {
@@ -827,10 +752,23 @@ export default function RegisterPage() {
                     Creating account...
                   </span>
                 ) : (
-                  "Create Account"
+                  "Create Customer Account"
                 )}
               </button>
             </form>
+
+            {/* Business account notice */}
+            <div
+              className={`mt-6 rounded-xl border p-4 text-center text-xs ${
+                darkMode
+                  ? "border-white/10 bg-white/[0.03] text-slate-400"
+                  : "border-slate-200 bg-slate-50 text-slate-500"
+              }`}
+            >
+              <span className="font-medium">Business account?</span>{" "}
+              Business access is available through an
+              approval process.
+            </div>
 
             {/* Login */}
             <div
@@ -864,7 +802,6 @@ export default function RegisterPage() {
         </div>
       </section>
 
-      {/* Shared Footer */}
       <Footer />
     </main>
   );
