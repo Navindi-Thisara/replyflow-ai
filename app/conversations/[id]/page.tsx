@@ -92,7 +92,6 @@ export default function ConversationPage() {
 
   // AI REPLY STATE
 
-  const [aiReply, setAiReply] = useState("");
   const [generatingReply, setGeneratingReply] =
     useState(false);
 
@@ -198,8 +197,6 @@ export default function ConversationPage() {
         );
 
         setIsLead(Boolean(existingLead));
-
-        setAiReply("");
 
         setMessageSource("HUMAN");
       } catch (error) {
@@ -392,7 +389,6 @@ export default function ConversationPage() {
             })),
 
             tone,
-
             replyLength,
           }),
         }
@@ -426,7 +422,29 @@ export default function ConversationPage() {
         );
       }
 
-      setAiReply(data.reply || "");
+      const generatedReply =
+        data.reply?.trim() || "";
+
+      if (!generatedReply) {
+        throw new Error(
+          "AI did not generate a reply."
+        );
+      }
+
+      /*
+       * IMPORTANT:
+       *
+       * Put the generated AI reply directly
+       * into the bottom composer.
+       *
+       * It is NOT added to the messages list yet.
+       * It will only become a conversation message
+       * after the user clicks Send.
+       */
+
+      setMessageText(generatedReply);
+
+      setMessageSource("AI");
     } catch (error) {
       console.error(
         "AI reply generation error:",
@@ -443,20 +461,6 @@ export default function ConversationPage() {
     } finally {
       setGeneratingReply(false);
     }
-  };
-
-  // USE AI REPLY
-
-  const handleUseAIReply = () => {
-    if (!aiReply) {
-      return;
-    }
-
-    setMessageText(aiReply);
-
-    setMessageSource("AI");
-
-    setAiReply("");
   };
 
   // SEND MESSAGE
@@ -896,7 +900,7 @@ export default function ConversationPage() {
           <section className="flex flex-1 flex-col">
             <div className="mx-auto flex w-full max-w-[1000px] flex-1 flex-col px-4 sm:px-6 lg:px-8">
 
-              {/* AI ASSISTANT */}
+              {/* AI ASSISTANT INFO */}
 
               <div
                 className={`mt-6 rounded-2xl border p-4 ${
@@ -940,69 +944,6 @@ export default function ConversationPage() {
                     </p>
                   </div>
                 </div>
-
-                {/* AI SUGGESTED REPLY */}
-
-                {aiReply && (
-                  <div
-                    className={`mt-4 rounded-xl border p-4 ${
-                      isDark
-                        ? "border-white/10 bg-[#141827]"
-                        : "border-indigo-100 bg-white"
-                    }`}
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <div
-                        className={`flex items-center gap-2 text-xs font-semibold ${
-                          isDark
-                            ? "text-indigo-300"
-                            : "text-indigo-700"
-                        }`}
-                      >
-                        <Bot className="h-3.5 w-3.5" />
-                        AI Suggested Reply
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={
-                          handleGenerateAIReply
-                        }
-                        disabled={generatingReply}
-                        className={`text-xs font-medium transition ${
-                          isDark
-                            ? "text-slate-400 hover:text-white"
-                            : "text-slate-500 hover:text-slate-900"
-                        }`}
-                      >
-                        {generatingReply
-                          ? "Generating..."
-                          : "Regenerate"}
-                      </button>
-                    </div>
-
-                    <p
-                      className={`whitespace-pre-wrap text-sm leading-6 ${
-                        isDark
-                          ? "text-slate-200"
-                          : "text-slate-700"
-                      }`}
-                    >
-                      {aiReply}
-                    </p>
-
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={handleUseAIReply}
-                        className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-indigo-500"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        Use Reply
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* MESSAGES */}
@@ -1271,6 +1212,11 @@ export default function ConversationPage() {
                           event.target.value
                         );
 
+                        /*
+                         * If the user manually edits
+                         * the generated AI reply,
+                         * treat it as a human message.
+                         */
                         setMessageSource("HUMAN");
                       }}
                       onKeyDown={(event) => {
