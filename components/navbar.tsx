@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useState } from "react";
 import { useTheme } from "next-themes";
 import {
@@ -11,7 +11,10 @@ import {
   Sun,
   X,
   LogOut,
+  Loader2,
 } from "lucide-react";
+
+import { supabase } from "@/lib/supabase/client";
 
 function NavLink({
   href,
@@ -38,8 +41,11 @@ function NavLink({
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
+
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const darkMode = resolvedTheme !== "light";
 
@@ -60,10 +66,34 @@ export default function Navbar() {
     setMobileMenu(false);
   }
 
-  function handleLogout() {
-    // Supabase logout will be added here
-    console.log("Logout clicked");
-    closeMobileMenu();
+  async function handleLogout() {
+    if (loggingOut) {
+      return;
+    }
+
+    setLoggingOut(true);
+
+    try {
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error("Logout error:", error);
+        setLoggingOut(false);
+        return;
+      }
+
+      closeMobileMenu();
+
+      // Redirect to login after successful logout
+      router.replace("/login");
+
+      // Refresh the route so protected pages cannot
+      // continue showing stale authenticated state.
+      router.refresh();
+    } catch (error) {
+      console.error("Unexpected logout error:", error);
+      setLoggingOut(false);
+    }
   }
 
   return (
@@ -256,14 +286,20 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={handleLogout}
+                disabled={loggingOut}
                 className={
                   darkMode
-                    ? "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition hover:text-white"
-                    : "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:text-slate-950"
+                    ? "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    : "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
                 }
               >
-                <LogOut className="h-4 w-4" />
-                Logout
+                {loggingOut ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="h-4 w-4" />
+                )}
+
+                {loggingOut ? "Logging out..." : "Logout"}
               </button>
             )}
           </div>
@@ -448,15 +484,23 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={handleLogout}
+                    disabled={loggingOut}
                     className={
                       darkMode
-                        ? "flex-1 rounded-lg border border-white/10 px-4 py-2.5 text-center text-sm text-slate-300"
-                        : "flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-center text-sm text-slate-600"
+                        ? "flex-1 rounded-lg border border-white/10 px-4 py-2.5 text-center text-sm text-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+                        : "flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-center text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
                     }
                   >
                     <span className="flex items-center justify-center gap-2">
-                      <LogOut className="h-4 w-4" />
-                      Logout
+                      {loggingOut ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <LogOut className="h-4 w-4" />
+                      )}
+
+                      {loggingOut
+                        ? "Logging out..."
+                        : "Logout"}
                     </span>
                   </button>
                 )}
