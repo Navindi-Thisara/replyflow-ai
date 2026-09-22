@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 import { motion } from "framer-motion";
+import { useTheme } from "next-themes";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+
 import {
   ArrowRight,
   BarChart3,
@@ -10,56 +14,27 @@ import {
   Bot,
   Check,
   CheckCircle2,
-  ChevronRight,
   Clock3,
   Inbox,
-  Menu,
   MessageCircle,
   MessageSquare,
-  Moon,
   MoreHorizontal,
   Search,
   Send,
   Settings,
   Sparkles,
-  Sun,
   Target,
   TrendingUp,
   Users,
-  X,
   Zap,
 } from "lucide-react";
 
 export default function Home() {
-  const [mobileMenu, setMobileMenu] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
   const [selectedConversation, setSelectedConversation] = useState(0);
   const [contactSent, setContactSent] = useState(false);
 
-  /* ------------------------------------------------------------ */
-  /* THEME */
-  /* ------------------------------------------------------------ */
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("replyflow-theme");
-
-    if (savedTheme === "light") {
-      setDarkMode(false);
-    } else {
-      setDarkMode(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "replyflow-theme",
-      darkMode ? "dark" : "light"
-    );
-  }, [darkMode]);
-
-  /* ------------------------------------------------------------ */
-  /* CONVERSATIONS */
-  /* ------------------------------------------------------------ */
+  const { resolvedTheme } = useTheme();
+  const darkMode = resolvedTheme !== "light";
 
   const conversations = [
     {
@@ -91,11 +66,10 @@ export default function Home() {
   const currentConversation =
     conversations[selectedConversation];
 
-  /* ------------------------------------------------------------ */
-  /* CONTACT */
-  /* ------------------------------------------------------------ */
 
-  function handleContactSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleContactSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
@@ -112,7 +86,9 @@ export default function Home() {
       `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`
     );
 
-    window.location.href = `mailto:navindithisara214@gmail.com?subject=${subject}&body=${body}`;
+    window.location.href =
+      `mailto:navindithisara214@gmail.com?subject=${subject}&body=${body}`;
+
     setContactSent(true);
   }
 
@@ -124,212 +100,10 @@ export default function Home() {
           : "min-h-screen overflow-x-hidden bg-slate-50 text-slate-950 transition-colors duration-300"
       }
     >
-      {/* ========================================================= */}
-      {/* NAVBAR */}
-      {/* ========================================================= */}
+      {/* SHARED NAVBAR */}
+      <Navbar />
 
-      <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6">
-        <nav
-          className={
-            darkMode
-              ? "mx-auto max-w-7xl rounded-2xl border border-white/10 bg-[#090d1a]/85 shadow-2xl backdrop-blur-xl"
-              : "mx-auto max-w-7xl rounded-2xl border border-slate-200 bg-white/90 shadow-xl backdrop-blur-xl"
-          }
-        >
-          <div className="flex h-16 items-center justify-between px-4 sm:px-6">
-            {/* Logo */}
-
-            <Link href="/" className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg shadow-indigo-500/20">
-                <Bot className="h-5 w-5 text-white" />
-              </div>
-
-              <div>
-                <div
-                  className={
-                    darkMode
-                      ? "text-sm font-bold tracking-tight text-white"
-                      : "text-sm font-bold tracking-tight text-slate-950"
-                  }
-                >
-                  ReplyFlow
-                </div>
-
-                <div
-                  className={
-                    darkMode
-                      ? "hidden text-[10px] text-slate-500 sm:block"
-                      : "hidden text-[10px] text-slate-500 sm:block"
-                  }
-                >
-                  AI Customer Assistant
-                </div>
-              </div>
-            </Link>
-
-            {/* Desktop Navigation */}
-
-            <div className="hidden items-center gap-7 lg:flex">
-              <NavLink href="#about" darkMode={darkMode}>
-                About
-              </NavLink>
-
-              <NavLink href="#services" darkMode={darkMode}>
-                Services
-              </NavLink>
-
-              <NavLink
-                href="#how-it-works"
-                darkMode={darkMode}
-              >
-                How It Works
-              </NavLink>
-
-              <NavLink href="#pricing" darkMode={darkMode}>
-                Pricing
-              </NavLink>
-
-              <NavLink href="#contact" darkMode={darkMode}>
-                Contact
-              </NavLink>
-            </div>
-
-            {/* Desktop Actions */}
-
-            <div className="hidden items-center gap-2 sm:flex">
-              {/* Theme Toggle */}
-
-              <button
-                type="button"
-                onClick={() => setDarkMode(!darkMode)}
-                className={
-                  darkMode
-                    ? "flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition hover:bg-white/10 hover:text-white"
-                    : "flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-600 transition hover:bg-slate-200 hover:text-slate-950"
-                }
-                aria-label={
-                  darkMode
-                    ? "Switch to light mode"
-                    : "Switch to dark mode"
-                }
-                title={
-                  darkMode
-                    ? "Switch to light mode"
-                    : "Switch to dark mode"
-                }
-              >
-                {darkMode ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )}
-              </button>
-
-              <Link
-                href="/login"
-                className={
-                  darkMode
-                    ? "rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition hover:text-white"
-                    : "rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:text-slate-950"
-                }
-              >
-                Login
-              </Link>
-
-              <Link
-                href="/register"
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
-              >
-                Get Started
-              </Link>
-            </div>
-
-            {/* Mobile Button */}
-
-            <button
-              type="button"
-              onClick={() => setMobileMenu(!mobileMenu)}
-              className={
-                darkMode
-                  ? "flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 sm:hidden"
-                  : "flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 sm:hidden"
-              }
-              aria-label="Open menu"
-            >
-              {mobileMenu ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-
-          {/* Mobile Menu */}
-
-          {mobileMenu && (
-            <div
-              className={
-                darkMode
-                  ? "border-t border-white/10 px-4 pb-4 pt-3 sm:hidden"
-                  : "border-t border-slate-200 px-4 pb-4 pt-3 sm:hidden"
-              }
-            >
-              <div className="flex flex-col gap-1">
-                {[
-                  ["About", "#about"],
-                  ["Services", "#services"],
-                  ["How It Works", "#how-it-works"],
-                  ["Pricing", "#pricing"],
-                  ["Contact", "#contact"],
-                ].map(([label, href]) => (
-                  <a
-                    key={label}
-                    href={href}
-                    onClick={() => setMobileMenu(false)}
-                    className={
-                      darkMode
-                        ? "rounded-lg px-3 py-3 text-sm text-slate-400 hover:bg-white/5 hover:text-white"
-                        : "rounded-lg px-3 py-3 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-                    }
-                  >
-                    {label}
-                  </a>
-                ))}
-
-                <div
-                  className={
-                    darkMode
-                      ? "mt-2 flex gap-2 border-t border-white/10 pt-3"
-                      : "mt-2 flex gap-2 border-t border-slate-200 pt-3"
-                  }
-                >
-                  <Link
-                    href="/login"
-                    className={
-                      darkMode
-                        ? "flex-1 rounded-lg border border-white/10 px-4 py-2.5 text-center text-sm"
-                        : "flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-center text-sm"
-                    }
-                  >
-                    Login
-                  </Link>
-
-                  <Link
-                    href="/register"
-                    className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-center text-sm font-semibold text-white"
-                  >
-                    Get Started
-                  </Link>
-                </div>
-              </div>
-            </div>
-          )}
-        </nav>
-      </header>
-
-      {/* ========================================================= */}
       {/* HERO */}
-      {/* ========================================================= */}
 
       <section className="relative overflow-hidden px-6 pb-20 pt-40">
         <div className="pointer-events-none absolute inset-0">
@@ -348,17 +122,19 @@ export default function Home() {
 
         <div className="relative mx-auto max-w-7xl">
           <div className="mx-auto max-w-4xl text-center">
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               className={`mb-7 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm ${
-  darkMode
-    ? "border border-indigo-400/20 bg-indigo-500/10 text-indigo-300"
-    : "border border-indigo-200 bg-indigo-50 text-indigo-700"
-}`}
+                darkMode
+                  ? "border border-indigo-400/20 bg-indigo-500/10 text-indigo-300"
+                  : "border border-indigo-200 bg-indigo-50 text-indigo-700"
+              }`}
             >
               <Sparkles className="h-4 w-4" />
+
               AI-powered customer conversations
             </motion.div>
 
@@ -421,13 +197,7 @@ export default function Home() {
               </a>
             </motion.div>
 
-            <div
-              className={
-                darkMode
-                  ? "mt-7 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-slate-500"
-                  : "mt-7 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-slate-500"
-              }
-            >
+            <div className="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-slate-500">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                 No credit card required
@@ -445,7 +215,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Hero Dashboard Preview */}
+          {/* HERO DASHBOARD PREVIEW */}
 
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.97 }}
@@ -487,6 +257,7 @@ export default function Home() {
               </div>
 
               <div className="grid min-h-[430px] md:grid-cols-[180px_1fr] lg:grid-cols-[200px_1fr_220px]">
+
                 {/* Sidebar */}
 
                 <div
@@ -673,13 +444,7 @@ export default function Home() {
                               </span>
                             </div>
 
-                            <div
-                              className={
-                                darkMode
-                                  ? "mt-1 truncate text-[9px] text-slate-500"
-                                  : "mt-1 truncate text-[9px] text-slate-500"
-                              }
-                            >
+                            <div className="mt-1 truncate text-[9px] text-slate-500">
                               {item.message}
                             </div>
                           </div>
@@ -780,13 +545,7 @@ export default function Home() {
                         </span>
                       </div>
 
-                      <p
-                        className={
-                          darkMode
-                            ? "mt-2 text-[8px] leading-4 text-slate-500"
-                            : "mt-2 text-[8px] leading-4 text-slate-500"
-                        }
-                      >
+                      <p className="mt-2 text-[8px] leading-4 text-slate-500">
                         Customer shows strong purchase intent.
                       </p>
                     </div>
@@ -868,6 +627,7 @@ export default function Home() {
 
       <section id="about" className="relative px-6 py-28">
         <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-2 lg:items-center">
+
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -1110,9 +870,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ========================================================= */}
       {/* PRICING */}
-      {/* ========================================================= */}
 
       <section
         id="pricing"
@@ -1179,9 +937,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ========================================================= */}
       {/* CONTACT */}
-      {/* ========================================================= */}
 
       <section id="contact" className="px-6 py-28">
         <div className="mx-auto max-w-6xl">
@@ -1198,6 +954,7 @@ export default function Home() {
             <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl" />
 
             <div className="relative grid gap-12 lg:grid-cols-2 lg:items-center">
+
               {/* Contact Info */}
 
               <div>
@@ -1269,18 +1026,15 @@ export default function Home() {
                     Send us a message
                   </h3>
 
-                  <p
-                    className={
-                      darkMode
-                        ? "mt-1 text-xs text-slate-500"
-                        : "mt-1 text-xs text-slate-500"
-                    }
-                  >
+                  <p className="mt-1 text-xs text-slate-500">
                     We&apos;ll get back to you as soon as possible.
                   </p>
                 </div>
 
                 <div className="space-y-4">
+
+                  {/* Name */}
+
                   <div>
                     <label
                       htmlFor="name"
@@ -1306,6 +1060,8 @@ export default function Home() {
                       }
                     />
                   </div>
+
+                  {/* Email */}
 
                   <div>
                     <label
@@ -1333,6 +1089,8 @@ export default function Home() {
                     />
                   </div>
 
+                  {/* Message */}
+
                   <div>
                     <label
                       htmlFor="message"
@@ -1358,6 +1116,8 @@ export default function Home() {
                       }
                     />
                   </div>
+
+                  {/* Submit */}
 
                   <button
                     type="submit"
@@ -1387,177 +1147,11 @@ export default function Home() {
       </section>
 
       {/* ========================================================= */}
-      {/* FOOTER */}
+      {/* SHARED FOOTER */}
       {/* ========================================================= */}
 
-      <footer
-        className={
-          darkMode
-            ? "border-t border-white/10 px-6 py-12"
-            : "border-t border-slate-200 bg-white px-6 py-12"
-        }
-      >
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-10 md:grid-cols-4">
-            <div className="md:col-span-2">
-              <Link
-                href="/"
-                className="flex items-center gap-3"
-              >
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600">
-                  <Bot className="h-5 w-5 text-white" />
-                </div>
-
-                <div>
-                  <div
-                    className={
-                      darkMode
-                        ? "text-sm font-bold"
-                        : "text-sm font-bold text-slate-950"
-                    }
-                  >
-                    ReplyFlow
-                  </div>
-
-                  <div className="text-[10px] text-slate-500">
-                    AI Customer Assistant
-                  </div>
-                </div>
-              </Link>
-
-              <p
-                className={
-                  darkMode
-                    ? "mt-5 max-w-sm text-xs leading-6 text-slate-500"
-                    : "mt-5 max-w-sm text-xs leading-6 text-slate-500"
-                }
-              >
-                AI-powered customer conversation management for
-                modern small businesses.
-              </p>
-
-              <div className="mt-5 text-xs text-slate-500">
-                Built with AI. Designed for humans.
-              </div>
-            </div>
-
-            <div>
-              <div
-                className={
-                  darkMode
-                    ? "mb-4 text-xs font-semibold"
-                    : "mb-4 text-xs font-semibold text-slate-900"
-                }
-              >
-                Product
-              </div>
-
-              <div className="space-y-3">
-                <FooterLink href="#services" darkMode={darkMode}>
-                  Features
-                </FooterLink>
-
-                <FooterLink href="#pricing" darkMode={darkMode}>
-                  Pricing
-                </FooterLink>
-
-                <FooterLink
-                  href="#how-it-works"
-                  darkMode={darkMode}
-                >
-                  How It Works
-                </FooterLink>
-
-                <FooterLink
-                  href="/dashboard"
-                  darkMode={darkMode}
-                >
-                  Dashboard
-                </FooterLink>
-              </div>
-            </div>
-
-            <div>
-              <div
-                className={
-                  darkMode
-                    ? "mb-4 text-xs font-semibold"
-                    : "mb-4 text-xs font-semibold text-slate-900"
-                }
-              >
-                Company
-              </div>
-
-              <div className="space-y-3">
-                <FooterLink href="#about" darkMode={darkMode}>
-                  About
-                </FooterLink>
-
-                <FooterLink href="#contact" darkMode={darkMode}>
-                  Contact
-                </FooterLink>
-
-                <FooterLink href="/login" darkMode={darkMode}>
-                  Login
-                </FooterLink>
-
-                <FooterLink
-                  href="/register"
-                  darkMode={darkMode}
-                >
-                  Register
-                </FooterLink>
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={
-              darkMode
-                ? "mt-12 flex flex-col justify-between gap-4 border-t border-white/10 pt-7 text-[10px] text-slate-600 sm:flex-row"
-                : "mt-12 flex flex-col justify-between gap-4 border-t border-slate-200 pt-7 text-[10px] text-slate-500 sm:flex-row"
-            }
-          >
-            <span>
-              © {new Date().getFullYear()} ReplyFlow. All
-              rights reserved.
-            </span>
-
-            <div className="flex gap-5">
-              <span>Privacy</span>
-              <span>Terms</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
-  );
-}
-
-/* ============================================================= */
-/* NAV LINK */
-/* ============================================================= */
-
-function NavLink({
-  href,
-  children,
-  darkMode,
-}: {
-  href: string;
-  children: ReactNode;
-  darkMode: boolean;
-}) {
-  return (
-    <a
-      href={href}
-      className={
-        darkMode
-          ? "text-sm text-slate-400 transition hover:text-white"
-          : "text-sm text-slate-600 transition hover:text-slate-950"
-      }
-    >
-      {children}
-    </a>
   );
 }
 
@@ -1640,9 +1234,7 @@ function Stat({
   );
 }
 
-/* ============================================================= */
 /* ABOUT CARD */
-/* ============================================================= */
 
 function AboutCard({
   icon,
@@ -1684,9 +1276,7 @@ function AboutCard({
   );
 }
 
-/* ============================================================= */
 /* SECTION HEADING */
-/* ============================================================= */
 
 function SectionHeading({
   eyebrow,
@@ -1735,9 +1325,7 @@ function SectionHeading({
   );
 }
 
-/* ============================================================= */
 /* SERVICE CARD */
-/* ============================================================= */
 
 function ServiceCard({
   icon,
@@ -1790,9 +1378,7 @@ function ServiceCard({
   );
 }
 
-/* ============================================================= */
 /* STEP CARD */
-/* ============================================================= */
 
 function StepCard({
   number,
@@ -1855,9 +1441,7 @@ function StepCard({
   );
 }
 
-/* ============================================================= */
 /* PRICING CARD */
-/* ============================================================= */
 
 function PricingCard({
   name,
@@ -2032,32 +1616,5 @@ function ContactCard({
         </div>
       </div>
     </div>
-  );
-}
-
-/* ============================================================= */
-/* FOOTER LINK */
-/* ============================================================= */
-
-function FooterLink({
-  href,
-  children,
-  darkMode,
-}: {
-  href: string;
-  children: ReactNode;
-  darkMode: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={
-        darkMode
-          ? "block text-xs text-slate-500 transition hover:text-white"
-          : "block text-xs text-slate-500 transition hover:text-slate-950"
-      }
-    >
-      {children}
-    </Link>
   );
 }
