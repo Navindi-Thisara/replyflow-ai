@@ -4,8 +4,8 @@ import Link from "next/link";
 import { FormEvent, ReactNode, useState } from "react";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
 
 import {
   ArrowRight,
