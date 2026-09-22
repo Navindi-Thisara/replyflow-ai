@@ -43,7 +43,8 @@ npm run dev
 
 Open http://localhost:3000.
 
-📁 Main Structure
+## 📁 Main Structure
+
 app/
 ├── api/generate-reply/
 ├── conversations/
@@ -56,13 +57,14 @@ app/
 
 components/
 lib/
-🔗 Links
+
+## 🔗 Links
 
 Live Demo: https://replyflow-ai-bzfl.vercel.app/
 
 GitHub: https://github.com/Navindi-Thisara/replyflow-ai
 
-👩‍💻 Author
+## 👩‍💻 Author
 
 Navindi Thisara
 
