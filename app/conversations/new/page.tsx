@@ -1,4 +1,3 @@
-
 "use client";
 
 import { FormEvent, useState } from "react";
@@ -46,7 +45,9 @@ export default function NewConversationPage() {
     const cleanMessage = initialMessage.trim();
 
     if (!cleanName) {
-      setErrorMessage("Please enter the customer's name.");
+      setErrorMessage(
+        "Please enter the customer's name."
+      );
       return;
     }
 
@@ -74,6 +75,10 @@ export default function NewConversationPage() {
     setLoading(true);
 
     try {
+      // --------------------------------------------------
+      // GET CURRENT USER
+      // --------------------------------------------------
+
       const {
         data: { user },
         error: userError,
@@ -88,22 +93,126 @@ export default function NewConversationPage() {
         return;
       }
 
-      const { data: conversation, error: conversationError } =
-        await supabase
-          .from("conversations")
+      // --------------------------------------------------
+      // CHECK FOR EXISTING CONVERSATION
+      // --------------------------------------------------
+      //
+      // If this customer already has a conversation
+      // belonging to the current user, continue that
+      // conversation instead of creating another one.
+      //
+      // The newest conversation is selected in case
+      // duplicate customer records already exist.
+      // --------------------------------------------------
+
+      const {
+        data: existingConversation,
+        error: existingConversationError,
+      } = await supabase
+        .from("conversations")
+        .select(
+          "id, customer_name, last_message, status, created_at, updated_at"
+        )
+        .eq("user_id", user.id)
+        .ilike("customer_name", cleanName)
+        .order("updated_at", {
+          ascending: false,
+        })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingConversationError) {
+        throw new Error(
+          existingConversationError.message
+        );
+      }
+
+      // --------------------------------------------------
+      // EXISTING CUSTOMER
+      // --------------------------------------------------
+
+      if (existingConversation) {
+        // Add the follow-up message to the existing
+        // conversation.
+
+        const {
+          error: messageError,
+        } = await supabase
+          .from("messages")
           .insert({
+            conversation_id:
+              existingConversation.id,
             user_id: user.id,
-            customer_name: cleanName,
+            sender_type: "CUSTOMER",
+            content: cleanMessage,
+          });
+
+        if (messageError) {
+          throw new Error(
+            messageError.message
+          );
+        }
+
+        // Update the conversation preview and timestamp.
+
+        const {
+          error: updateError,
+        } = await supabase
+          .from("conversations")
+          .update({
             last_message: cleanMessage,
-            status,
+            updated_at:
+              new Date().toISOString(),
           })
-          .select(
-            "id, customer_name, last_message, status, created_at, updated_at"
+          .eq(
+            "id",
+            existingConversation.id
           )
-          .single();
+          .eq("user_id", user.id);
+
+        if (updateError) {
+          throw new Error(
+            updateError.message
+          );
+        }
+
+        // AI setting is currently handled on the
+        // conversation detail page.
+        void aiEnabled;
+        void status;
+
+        // Open the EXISTING conversation.
+        router.push(
+          `/conversations/${existingConversation.id}`
+        );
+
+        return;
+      }
+
+      // --------------------------------------------------
+      // NEW CUSTOMER
+      // --------------------------------------------------
+
+      const {
+        data: conversation,
+        error: conversationError,
+      } = await supabase
+        .from("conversations")
+        .insert({
+          user_id: user.id,
+          customer_name: cleanName,
+          last_message: cleanMessage,
+          status,
+        })
+        .select(
+          "id, customer_name, last_message, status, created_at, updated_at"
+        )
+        .single();
 
       if (conversationError) {
-        throw new Error(conversationError.message);
+        throw new Error(
+          conversationError.message
+        );
       }
 
       if (!conversation) {
@@ -112,7 +221,13 @@ export default function NewConversationPage() {
         );
       }
 
-      const { error: messageError } = await supabase
+      // --------------------------------------------------
+      // CREATE FIRST CUSTOMER MESSAGE
+      // --------------------------------------------------
+
+      const {
+        error: messageError,
+      } = await supabase
         .from("messages")
         .insert({
           conversation_id: conversation.id,
@@ -122,20 +237,34 @@ export default function NewConversationPage() {
         });
 
       if (messageError) {
+        // Roll back the conversation if the first
+        // message could not be created.
+
         await supabase
           .from("conversations")
           .delete()
           .eq("id", conversation.id)
           .eq("user_id", user.id);
 
-        throw new Error(messageError.message);
+        throw new Error(
+          messageError.message
+        );
       }
 
       void aiEnabled;
 
-      router.push(`/conversations/${conversation.id}`);
+      // --------------------------------------------------
+      // OPEN THE NEW CONVERSATION
+      // --------------------------------------------------
+
+      router.push(
+        `/conversations/${conversation.id}`
+      );
     } catch (error) {
-      console.error("Create conversation error:", error);
+      console.error(
+        "Create/continue conversation error:",
+        error
+      );
 
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -163,10 +292,13 @@ export default function NewConversationPage() {
 
       <main className="pt-[76px] lg:pl-[260px]">
         <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+
           {/* Back button */}
           <button
             type="button"
-            onClick={() => router.push("/conversations")}
+            onClick={() =>
+              router.push("/conversations")
+            }
             className={`mb-6 inline-flex items-center gap-2 text-sm font-medium transition ${
               isDark
                 ? "text-slate-400 hover:text-white"
@@ -191,7 +323,9 @@ export default function NewConversationPage() {
 
             <h1
               className={`text-3xl font-bold tracking-tight sm:text-4xl ${
-                isDark ? "text-white" : "text-slate-900"
+                isDark
+                  ? "text-white"
+                  : "text-slate-900"
               }`}
             >
               New Conversation
@@ -211,6 +345,7 @@ export default function NewConversationPage() {
 
           {/* Main layout */}
           <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+
             {/* Form card */}
             <div
               className={`rounded-3xl border p-6 shadow-sm sm:p-8 ${
@@ -223,6 +358,7 @@ export default function NewConversationPage() {
                 onSubmit={handleCreateConversation}
                 className="space-y-7"
               >
+
                 {/* Customer information */}
                 <div>
                   <div className="mb-5 flex items-center gap-3">
@@ -275,7 +411,9 @@ export default function NewConversationPage() {
                     type="text"
                     value={customerName}
                     onChange={(event) =>
-                      setCustomerName(event.target.value)
+                      setCustomerName(
+                        event.target.value
+                      )
                     }
                     placeholder="e.g. Sarah Johnson"
                     maxLength={100}
@@ -288,7 +426,7 @@ export default function NewConversationPage() {
                   />
                 </div>
 
-                {/* Initial message */}
+                {/* Initial / Follow-up message */}
                 <div>
                   <label
                     htmlFor="initialMessage"
@@ -298,16 +436,18 @@ export default function NewConversationPage() {
                         : "text-slate-700"
                     }`}
                   >
-                    Initial Message
+                    Customer Message
                   </label>
 
                   <textarea
                     id="initialMessage"
                     value={initialMessage}
                     onChange={(event) =>
-                      setInitialMessage(event.target.value)
+                      setInitialMessage(
+                        event.target.value
+                      )
                     }
-                    placeholder="Enter the customer's first message..."
+                    placeholder="Enter the customer's message..."
                     rows={7}
                     maxLength={2000}
                     disabled={loading}
@@ -327,6 +467,12 @@ export default function NewConversationPage() {
                   >
                     {initialMessage.length}/2000
                   </div>
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    If this customer already has a
+                    conversation, the message will be added
+                    to that existing conversation.
+                  </p>
                 </div>
 
                 {/* Status */}
@@ -358,9 +504,15 @@ export default function NewConversationPage() {
                         : "border-slate-200 bg-white text-slate-900 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
                     }`}
                   >
-                    <option value="NEW">New</option>
-                    <option value="WARM">Warm</option>
-                    <option value="HOT">Hot</option>
+                    <option value="NEW">
+                      New
+                    </option>
+                    <option value="WARM">
+                      Warm
+                    </option>
+                    <option value="HOT">
+                      Hot
+                    </option>
                   </select>
 
                   <p
@@ -425,7 +577,9 @@ export default function NewConversationPage() {
                     aria-label="Enable AI assistance"
                     disabled={loading}
                     onClick={() =>
-                      setAiEnabled((current) => !current)
+                      setAiEnabled(
+                        (current) => !current
+                      )
                     }
                     className={`relative h-7 w-12 shrink-0 rounded-full transition ${
                       aiEnabled
@@ -469,7 +623,9 @@ export default function NewConversationPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      router.push("/conversations")
+                      router.push(
+                        "/conversations"
+                      )
                     }
                     disabled={loading}
                     className={`rounded-xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
@@ -489,12 +645,12 @@ export default function NewConversationPage() {
                     {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Creating...
+                        Saving...
                       </>
                     ) : (
                       <>
                         <MessageSquare className="h-4 w-4" />
-                        Create Conversation
+                        Continue Conversation
                       </>
                     )}
                   </button>

@@ -147,6 +147,7 @@ export default function RegisterPage() {
           data: {
             full_name: cleanName,
           },
+              emailRedirectTo: `${window.location.origin}/login`,
         },
       });
 
