@@ -20,22 +20,32 @@ import { supabase } from "@/lib/supabase/client";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 
+type AccountType = "CUSTOMER" | "BUSINESS";
+
 export default function RegisterPage() {
   const router = useRouter();
   const { resolvedTheme } = useTheme();
 
   const [mounted, setMounted] = useState(false);
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [accountType, setAccountType] =
+    useState<AccountType>("CUSTOMER");
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState(false);
+
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [errors, setErrors] = useState<{
     fullName?: string;
     email?: string;
+    accountType?: string;
     password?: string;
     confirmPassword?: string;
     terms?: string;
@@ -51,8 +61,8 @@ export default function RegisterPage() {
 
   const darkMode = mounted && resolvedTheme !== "light";
 
+  // Validation
   const nameRegex = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
-
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const passwordRequirements = {
@@ -74,6 +84,7 @@ export default function RegisterPage() {
     const trimmedName = fullName.trim();
     const trimmedEmail = email.trim();
 
+    // Full name
     if (!trimmedName) {
       newErrors.fullName = "Full name is required.";
     } else if (!nameRegex.test(trimmedName)) {
@@ -81,13 +92,21 @@ export default function RegisterPage() {
         "Name can contain letters and spaces only.";
     }
 
+    // Email
     if (!trimmedEmail) {
       newErrors.email = "Email address is required.";
     } else if (!emailRegex.test(trimmedEmail)) {
       newErrors.email =
-        "Please enter a valid email address containing @.";
+        "Please enter a valid email address.";
     }
 
+    // Account type
+    if (!accountType) {
+      newErrors.accountType =
+        "Please select an account type.";
+    }
+
+    // Password
     if (!password) {
       newErrors.password = "Password is required.";
     } else if (!passwordRequirements.minLength) {
@@ -104,6 +123,7 @@ export default function RegisterPage() {
         "Password must contain at least one special character.";
     }
 
+    // Confirm password
     if (!confirmPassword) {
       newErrors.confirmPassword =
         "Please confirm your password.";
@@ -112,6 +132,7 @@ export default function RegisterPage() {
         "Passwords do not match.";
     }
 
+    // Terms
     if (!acceptedTerms) {
       newErrors.terms =
         "You must agree to the Terms & Conditions.";
@@ -146,17 +167,19 @@ export default function RegisterPage() {
         options: {
           data: {
             full_name: cleanName,
+            role: accountType,
           },
-              emailRedirectTo: `${window.location.origin}/login`,
+          emailRedirectTo: `${window.location.origin}/login`,
         },
       });
 
       if (error) {
+        console.error("Supabase registration error:", error);
+
         setErrors({
           general: error.message,
         });
 
-        setIsSubmitting(false);
         return;
       }
 
@@ -169,8 +192,8 @@ export default function RegisterPage() {
         setEmail("");
         setPassword("");
         setConfirmPassword("");
+        setAccountType("CUSTOMER");
         setAcceptedTerms(false);
-        setIsSubmitting(false);
 
         return;
       }
@@ -182,6 +205,7 @@ export default function RegisterPage() {
 
         setTimeout(() => {
           router.push("/login");
+          router.refresh();
         }, 1200);
       }
     } catch (error) {
@@ -271,8 +295,8 @@ export default function RegisterPage() {
                   : "text-slate-500"
               }`}
             >
-              Start managing your customer conversations
-              with ReplyFlow AI.
+              Create your ReplyFlow AI account and choose
+              how you want to use the platform.
             </p>
           </div>
 
@@ -294,7 +318,6 @@ export default function RegisterPage() {
                 }`}
               >
                 <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-
                 <span>{errors.general}</span>
               </div>
             )}
@@ -309,7 +332,6 @@ export default function RegisterPage() {
                 }`}
               >
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
-
                 <span>{successMessage}</span>
               </div>
             )}
@@ -431,6 +453,117 @@ export default function RegisterPage() {
                 )}
               </div>
 
+              {/* Account Type */}
+              <div>
+                <label
+                  className={`mb-2 block text-sm font-medium ${
+                    darkMode
+                      ? "text-slate-200"
+                      : "text-slate-700"
+                  }`}
+                >
+                  Account Type
+                </label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Customer */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountType("CUSTOMER");
+
+                      if (errors.accountType) {
+                        setErrors((previous) => ({
+                          ...previous,
+                          accountType: undefined,
+                        }));
+                      }
+                    }}
+                    className={`rounded-xl border p-4 text-left transition ${
+                      accountType === "CUSTOMER"
+                        ? darkMode
+                          ? "border-indigo-500 bg-indigo-500/10"
+                          : "border-indigo-500 bg-indigo-50"
+                        : darkMode
+                        ? "border-white/10 bg-white/5 hover:border-white/20"
+                        : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                    }`}
+                  >
+                    <div
+                      className={`text-sm font-semibold ${
+                        darkMode
+                          ? "text-white"
+                          : "text-slate-900"
+                      }`}
+                    >
+                      Customer
+                    </div>
+
+                    <div
+                      className={`mt-1 text-xs leading-5 ${
+                        darkMode
+                          ? "text-slate-400"
+                          : "text-slate-500"
+                      }`}
+                    >
+                      Contact businesses and manage
+                      conversations
+                    </div>
+                  </button>
+
+                  {/* Business */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountType("BUSINESS");
+
+                      if (errors.accountType) {
+                        setErrors((previous) => ({
+                          ...previous,
+                          accountType: undefined,
+                        }));
+                      }
+                    }}
+                    className={`rounded-xl border p-4 text-left transition ${
+                      accountType === "BUSINESS"
+                        ? darkMode
+                          ? "border-indigo-500 bg-indigo-500/10"
+                          : "border-indigo-500 bg-indigo-50"
+                        : darkMode
+                        ? "border-white/10 bg-white/5 hover:border-white/20"
+                        : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                    }`}
+                  >
+                    <div
+                      className={`text-sm font-semibold ${
+                        darkMode
+                          ? "text-white"
+                          : "text-slate-900"
+                      }`}
+                    >
+                      Business
+                    </div>
+
+                    <div
+                      className={`mt-1 text-xs leading-5 ${
+                        darkMode
+                          ? "text-slate-400"
+                          : "text-slate-500"
+                      }`}
+                    >
+                      Manage customers and AI-assisted
+                      replies
+                    </div>
+                  </button>
+                </div>
+
+                {errors.accountType && (
+                  <p className="mt-2 text-xs text-red-500">
+                    {errors.accountType}
+                  </p>
+                )}
+              </div>
+
               {/* Password */}
               <div>
                 <label
@@ -457,9 +590,7 @@ export default function RegisterPage() {
                     id="password"
                     name="password"
                     type={
-                      showPassword
-                        ? "text"
-                        : "password"
+                      showPassword ? "text" : "password"
                     }
                     autoComplete="new-password"
                     value={password}

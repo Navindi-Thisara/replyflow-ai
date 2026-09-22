@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 type ConversationMessage = {
@@ -19,7 +20,14 @@ type ReplyLength =
 
 export async function POST(request: Request) {
   try {
+    // --------------------------------------------------
+    // ENVIRONMENT VARIABLES
+    // --------------------------------------------------
+
     const apiKey = process.env.GEMINI_API_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey =
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
@@ -30,17 +38,145 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json(
+        {
+          error:
+            "Supabase environment variables are not configured.",
+        },
+        { status: 500 }
+      );
+    }
+
+    // --------------------------------------------------
+    // AUTHENTICATION
+    // --------------------------------------------------
+
+    const authorization = request.headers.get("Authorization");
+
+    if (!authorization?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        {
+          error: "Authentication required.",
+        },
+        { status: 401 }
+      );
+    }
+
+    const accessToken = authorization
+      .replace("Bearer ", "")
+      .trim();
+
+    if (!accessToken) {
+      return NextResponse.json(
+        {
+          error: "Authentication required.",
+        },
+        { status: 401 }
+      );
+    }
+
+    // Create Supabase client using the user's access token.
+    // This allows Supabase RLS to apply to this request.
+    const supabase = createClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      }
+    );
+
+    // Verify the access token.
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error(
+        "Authentication error:",
+        userError
+      );
+
+      return NextResponse.json(
+        {
+          error: "Invalid or expired session.",
+        },
+        { status: 401 }
+      );
+    }
+
+    // --------------------------------------------------
+    // BUSINESS ROLE CHECK
+    // --------------------------------------------------
+
+    const { data: profile, error: profileError } =
+      await supabase
+        .from("profiles")
+        .select("id, full_name, role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    if (profileError) {
+      console.error(
+        "Profile lookup error:",
+        profileError
+      );
+
+      return NextResponse.json(
+        {
+          error: "Unable to verify account role.",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!profile) {
+      return NextResponse.json(
+        {
+          error: "Account profile not found.",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (profile.role !== "BUSINESS") {
+      return NextResponse.json(
+        {
+          error:
+            "Only business accounts can generate AI replies.",
+        },
+        { status: 403 }
+      );
+    }
+
+    // --------------------------------------------------
+    // REQUEST BODY
+    // --------------------------------------------------
+
     const body = await request.json();
 
-    const messages =
-      body.messages as ConversationMessage[] | undefined;
+    const conversationId =
+      typeof body.conversationId === "string"
+        ? body.conversationId.trim()
+        : "";
 
-    const customerName =
-      typeof body.customerName === "string"
-        ? body.customerName.trim()
-        : "Customer";
+    if (!conversationId) {
+      return NextResponse.json(
+        {
+          error: "Conversation ID is required.",
+        },
+        { status: 400 }
+      );
+    }
 
+    // --------------------------------------------------
     // AI PREFERENCES
+    // --------------------------------------------------
 
     const allowedTones: Tone[] = [
       "Professional",
@@ -68,6 +204,78 @@ export async function POST(request: Request) {
         ? body.replyLength
         : "Medium";
 
+    // --------------------------------------------------
+    // LOAD BUSINESS CONVERSATION
+    // --------------------------------------------------
+
+    const {
+      data: conversation,
+      error: conversationError,
+    } = await supabase
+      .from("conversations")
+      .select(
+        "id, customer_name, user_id, customer_id"
+      )
+      .eq("id", conversationId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (conversationError) {
+      console.error(
+        "Conversation lookup error:",
+        conversationError
+      );
+
+      return NextResponse.json(
+        {
+          error: "Unable to load conversation.",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!conversation) {
+      return NextResponse.json(
+        {
+          error:
+            "Conversation not found or you do not have access to it.",
+        },
+        { status: 404 }
+      );
+    }
+
+    // --------------------------------------------------
+    // LOAD CONVERSATION MESSAGES
+    // --------------------------------------------------
+
+    const {
+      data: messages,
+      error: messagesError,
+    } = await supabase
+      .from("messages")
+      .select(
+        "id, conversation_id, sender_type, content, created_at"
+      )
+      .eq("conversation_id", conversationId)
+      .order("created_at", {
+        ascending: true,
+      });
+
+    if (messagesError) {
+      console.error(
+        "Messages lookup error:",
+        messagesError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "Unable to load conversation messages.",
+        },
+        { status: 500 }
+      );
+    }
+
     if (!messages || messages.length === 0) {
       return NextResponse.json(
         {
@@ -78,21 +286,38 @@ export async function POST(request: Request) {
       );
     }
 
-    const conversationText = messages
+    // --------------------------------------------------
+    // BUILD CONVERSATION CONTEXT
+    // --------------------------------------------------
+
+    const conversationText = (
+      messages as ConversationMessage[]
+    )
       .slice(-12)
       .map((message) => {
-        const speaker =
-          message.sender_type === "CUSTOMER"
-            ? customerName
-            : message.sender_type === "AI"
-              ? "ReplyFlow AI"
-              : "Support Agent";
+        let speaker = "Support Agent";
+
+        if (message.sender_type === "CUSTOMER") {
+          speaker =
+            conversation.customer_name ||
+            "Customer";
+        } else if (
+          message.sender_type === "AI"
+        ) {
+          speaker = "ReplyFlow AI";
+        } else if (
+          message.sender_type === "HUMAN"
+        ) {
+          speaker = "Support Agent";
+        }
 
         return `${speaker}: ${message.content}`;
       })
       .join("\n");
 
-    // TONE INSTRUCTIONS
+    // --------------------------------------------------
+    // TONE INSTRUCTION
+    // --------------------------------------------------
 
     const toneInstruction =
       tone === "Professional"
@@ -103,7 +328,9 @@ export async function POST(request: Request) {
             ? "Use a compassionate, understanding, and empathetic tone. Acknowledge the customer's feelings when appropriate."
             : "Use a concise, direct, and efficient tone. Avoid unnecessary wording while remaining polite.";
 
-    // LENGTH INSTRUCTIONS
+    // --------------------------------------------------
+    // LENGTH INSTRUCTION
+    // --------------------------------------------------
 
     const lengthInstruction =
       replyLength === "Short"
@@ -112,7 +339,9 @@ export async function POST(request: Request) {
           ? "Keep the reply moderate in length, usually 1-3 short paragraphs."
           : "Provide a more detailed but still focused reply. Include useful explanation or next steps when appropriate, without unnecessary repetition.";
 
-    // GEMINI
+    // --------------------------------------------------
+    // GEMINI AI
+    // --------------------------------------------------
 
     const ai = new GoogleGenAI({
       apiKey,
@@ -124,7 +353,7 @@ You are ReplyFlow AI, a professional customer-support reply assistant.
 Generate ONE customer-facing reply to the customer's latest message.
 
 Customer name:
-${customerName}
+${conversation.customer_name || "Customer"}
 
 Conversation:
 ${conversationText}
@@ -157,21 +386,31 @@ Rules:
 - Return ONLY the suggested customer-facing reply.
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-    });
+    const response =
+      await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+      });
 
     const reply = response.text?.trim();
+
+    // --------------------------------------------------
+    // VALIDATE AI RESPONSE
+    // --------------------------------------------------
 
     if (!reply) {
       return NextResponse.json(
         {
-          error: "The AI did not return a reply.",
+          error:
+            "The AI did not return a reply.",
         },
         { status: 500 }
       );
     }
+
+    // --------------------------------------------------
+    // RETURN GENERATED REPLY
+    // --------------------------------------------------
 
     return NextResponse.json({
       reply,
@@ -193,3 +432,4 @@ Rules:
     );
   }
 }
+

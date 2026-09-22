@@ -45,10 +45,22 @@ type Message = {
   id: string;
   conversation_id: string;
   user_id: string;
+  sender_user_id: string | null;
   sender_type: MessageSender;
   content: string;
   created_at: string;
 };
+
+type Tone =
+  | "Professional"
+  | "Friendly"
+  | "Empathetic"
+  | "Concise";
+
+type ReplyLength =
+  | "Short"
+  | "Medium"
+  | "Detailed";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -128,7 +140,28 @@ export default function ConversationPage() {
           return;
         }
 
+        // VERIFY BUSINESS ROLE
+
+        const {
+          data: profile,
+          error: profileError,
+        } = await supabase
+          .from("profiles")
+          .select("id, role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          throw new Error(profileError.message);
+        }
+
+        if (!profile || profile.role !== "BUSINESS") {
+          router.push("/customer/conversations");
+          return;
+        }
+
         // LOAD CONVERSATION
+        // user_id = BUSINESS OWNER
 
         const {
           data: conversationData,
@@ -152,7 +185,13 @@ export default function ConversationPage() {
           );
         }
 
-        // LOAD MESSAGES
+        // LOAD ALL MESSAGES
+        //
+        // IMPORTANT:
+        // Do NOT filter by messages.user_id = business user.
+        //
+        // Customer messages belong to the conversation,
+        // but their sender_user_id is the customer's ID.
 
         const {
           data: messageData,
@@ -160,10 +199,9 @@ export default function ConversationPage() {
         } = await supabase
           .from("messages")
           .select(
-            "id, conversation_id, user_id, sender_type, content, created_at"
+            "id, conversation_id, user_id, sender_user_id, sender_type, content, created_at"
           )
           .eq("conversation_id", conversationId)
-          .eq("user_id", user.id)
           .order("created_at", {
             ascending: true,
           });
@@ -274,6 +312,25 @@ export default function ConversationPage() {
       }
 
       const {
+        data: profile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        throw new Error(profileError.message);
+      }
+
+      if (!profile || profile.role !== "BUSINESS") {
+        throw new Error(
+          "Only business accounts can create leads."
+        );
+      }
+
+      const {
         data: existingLead,
         error: existingLeadError,
       } = await supabase
@@ -343,7 +400,86 @@ export default function ConversationPage() {
     setErrorMessage("");
 
     try {
-      // LOAD AI PREFERENCES FROM SETTINGS
+      // --------------------------------------------------
+      // GET CURRENT SESSION + ACCESS TOKEN
+      // --------------------------------------------------
+
+      let {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        throw new Error(
+          sessionError.message
+        );
+      }
+
+      // If the session is temporarily unavailable,
+      // try refreshing it once.
+
+      if (!session?.access_token) {
+        const {
+          data: refreshedSession,
+          error: refreshError,
+        } = await supabase.auth.refreshSession();
+
+        if (refreshError) {
+          throw new Error(
+            refreshError.message
+          );
+        }
+
+        session =
+          refreshedSession.session;
+      }
+
+      if (!session?.access_token) {
+        throw new Error(
+          "Your session has expired. Please log in again."
+        );
+      }
+
+      // --------------------------------------------------
+      // VERIFY BUSINESS ACCOUNT
+      // --------------------------------------------------
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw new Error(userError.message);
+      }
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      const {
+        data: profile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        throw new Error(profileError.message);
+      }
+
+      if (!profile || profile.role !== "BUSINESS") {
+        throw new Error(
+          "Only business accounts can generate AI replies."
+        );
+      }
+
+      // --------------------------------------------------
+      // LOAD AI PREFERENCES
+      // --------------------------------------------------
 
       const storedTone =
         localStorage.getItem(
@@ -355,7 +491,7 @@ export default function ConversationPage() {
           "replyflow_ai_reply_length"
         );
 
-      const tone =
+      const tone: Tone =
         storedTone === "Professional" ||
         storedTone === "Friendly" ||
         storedTone === "Empathetic" ||
@@ -363,31 +499,36 @@ export default function ConversationPage() {
           ? storedTone
           : "Professional";
 
-      const replyLength =
+      const replyLength: ReplyLength =
         storedReplyLength === "Short" ||
         storedReplyLength === "Medium" ||
         storedReplyLength === "Detailed"
           ? storedReplyLength
           : "Medium";
 
-      // SEND CONVERSATION + AI PREFERENCES TO API
+      // --------------------------------------------------
+      // CALL AI API
+      // --------------------------------------------------
+      //
+      // IMPORTANT:
+      // The API requires:
+      //
+      // Authorization: Bearer <Supabase access token>
+      //
+      // and conversationId in the request body.
 
       const response = await fetch(
         "/api/generate-reply",
         {
           method: "POST",
+
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
           },
+
           body: JSON.stringify({
-            customerName:
-              conversation.customer_name,
-
-            messages: messages.map((message) => ({
-              sender_type: message.sender_type,
-              content: message.content,
-            })),
-
+            conversationId: conversation.id,
             tone,
             replyLength,
           }),
@@ -431,19 +572,16 @@ export default function ConversationPage() {
         );
       }
 
-      /*
-       * IMPORTANT:
-       *
-       * Put the generated AI reply directly
-       * into the bottom composer.
-       *
-       * It is NOT added to the messages list yet.
-       * It will only become a conversation message
-       * after the user clicks Send.
-       */
+      // --------------------------------------------------
+      // PUT AI REPLY INTO COMPOSER
+      // --------------------------------------------------
+      //
+      // It is NOT saved to the database yet.
+      //
+      // It becomes a message only when the user
+      // clicks Send.
 
       setMessageText(generatedReply);
-
       setMessageSource("AI");
     } catch (error) {
       console.error(
@@ -500,6 +638,40 @@ export default function ConversationPage() {
         );
       }
 
+      // VERIFY BUSINESS ROLE
+
+      const {
+        data: profile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        throw new Error(profileError.message);
+      }
+
+      if (!profile || profile.role !== "BUSINESS") {
+        throw new Error(
+          "Only business accounts can send replies."
+        );
+      }
+
+      // --------------------------------------------------
+      // INSERT BUSINESS MESSAGE
+      // --------------------------------------------------
+      //
+      // user_id:
+      //     business owner / conversation owner
+      //
+      // sender_user_id:
+      //     actual logged-in sender
+      //
+      // sender_type:
+      //     HUMAN or AI
+
       const {
         data: newMessage,
         error: messageError,
@@ -507,12 +679,17 @@ export default function ConversationPage() {
         .from("messages")
         .insert({
           conversation_id: conversation.id,
+
           user_id: user.id,
+
+          sender_user_id: user.id,
+
           sender_type: messageSource,
+
           content: cleanMessage,
         })
         .select(
-          "id, conversation_id, user_id, sender_type, content, created_at"
+          "id, conversation_id, user_id, sender_user_id, sender_type, content, created_at"
         )
         .single();
 
@@ -533,7 +710,9 @@ export default function ConversationPage() {
 
       setMessageSource("HUMAN");
 
+      // --------------------------------------------------
       // UPDATE CONVERSATION LAST MESSAGE
+      // --------------------------------------------------
 
       const {
         data: updatedConversation,
@@ -1212,11 +1391,9 @@ export default function ConversationPage() {
                           event.target.value
                         );
 
-                        /*
-                         * If the user manually edits
-                         * the generated AI reply,
-                         * treat it as a human message.
-                         */
+                        // If the business manually edits
+                        // an AI suggestion, it becomes HUMAN.
+
                         setMessageSource("HUMAN");
                       }}
                       onKeyDown={(event) => {

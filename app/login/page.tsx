@@ -18,15 +18,15 @@ import { supabase } from "@/lib/supabase/client";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 
+type UserRole = "CUSTOMER" | "BUSINESS";
+
 export default function LoginPage() {
   const router = useRouter();
   const { resolvedTheme } = useTheme();
 
   const [mounted, setMounted] = useState(false);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
 
   const [errors, setErrors] = useState<{
@@ -43,11 +43,13 @@ export default function LoginPage() {
 
   const darkMode = mounted && resolvedTheme !== "light";
 
+  // --------------------------------------------------
+  // Email validation
+  // --------------------------------------------------
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
-
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail) {
@@ -66,6 +68,9 @@ export default function LoginPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // --------------------------------------------------
+  // Login
+  // --------------------------------------------------
   const handleLogin = async (
     event: FormEvent<HTMLFormElement>
   ) => {
@@ -82,12 +87,18 @@ export default function LoginPage() {
     try {
       const cleanEmail = email.trim().toLowerCase();
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
+      // --------------------------------------------------
+      // 1. Authenticate with Supabase
+      // --------------------------------------------------
+      const { data, error } =
+        await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
 
       if (error) {
+        console.error("Supabase login error:", error);
+
         setErrors({
           general: "Invalid email address or password.",
         });
@@ -95,7 +106,119 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      if (!data.user) {
+        console.error("No authenticated user returned.");
+
+        setErrors({
+          general:
+            "Unable to retrieve your account information. Please try again.",
+        });
+
+        return;
+      }
+
+      console.log("Authenticated user:", {
+        id: data.user.id,
+        email: data.user.email,
+      });
+
+      // --------------------------------------------------
+      // 2. Retrieve the user's profile
+      // --------------------------------------------------
+      const {
+        data: profile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("id, email, full_name, role")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      // Debug information
+      console.log("Profile lookup result:", {
+        authenticatedUserId: data.user.id,
+        authenticatedEmail: data.user.email,
+        profile,
+        profileError,
+      });
+
+      // --------------------------------------------------
+      // 3. Handle profile query error
+      // --------------------------------------------------
+      if (profileError) {
+        console.error(
+          "Profile query failed:",
+          profileError
+        );
+
+        await supabase.auth.signOut();
+
+        setErrors({
+          general: `Unable to load your account profile: ${profileError.message}`,
+        });
+
+        return;
+      }
+
+      // --------------------------------------------------
+      // 4. Handle missing profile
+      // --------------------------------------------------
+      if (!profile) {
+        console.error(
+          "No profile found for authenticated user:",
+          data.user.id
+        );
+
+        await supabase.auth.signOut();
+
+        setErrors({
+          general:
+            "Your account profile could not be found. Please contact support.",
+        });
+
+        return;
+      }
+
+      console.log("User profile:", profile);
+
+      // --------------------------------------------------
+      // 5. Validate role
+      // --------------------------------------------------
+      const role = profile.role as UserRole;
+
+      if (role !== "BUSINESS" && role !== "CUSTOMER") {
+        console.error(
+          "Invalid user role:",
+          profile.role
+        );
+
+        await supabase.auth.signOut();
+
+        setErrors({
+          general:
+            "Your account role is not configured correctly.",
+        });
+
+        return;
+      }
+
+      // --------------------------------------------------
+      // 6. Role-based navigation
+      // --------------------------------------------------
+      if (role === "BUSINESS") {
+        console.log(
+          "Business user detected. Redirecting to dashboard."
+        );
+
+        router.push("/dashboard");
+      } else {
+        console.log(
+          "Customer user detected. Redirecting to customer conversations."
+        );
+
+        router.push("/customer/conversations");
+      }
+
       router.refresh();
     } catch (error) {
       console.error("Login error:", error);
@@ -142,7 +265,6 @@ export default function LoginPage() {
       {/* Login content */}
       <section className="relative z-10 flex min-h-screen items-center justify-center px-6 pb-20 pt-32">
         <div className="w-full max-w-md">
-
           {/* Back to home */}
           <Link
             href="/"
